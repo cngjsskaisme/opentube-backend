@@ -1,0 +1,51 @@
+//  env("DATABASE_URL")
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./openTube.db"
+}
+
+model VideoType {
+  id          Int     @id @default(autoincrement())
+  typeName    String
+  description String
+  Video       Video[]
+}
+
+model Video {
+  id            Int       @id @default(autoincrement())
+  path          String
+  thumbnailBlob Bytes
+  comments      Comment[]
+  createdDTTM   DateTime
+  Playlist      Playlist? @relation(fields: [playlistId], references: [id])
+  playlistId    Int?
+  type          VideoType @relation(fields: [videoTypeId], references: [id])
+  videoTypeId   Int
+  length        Int       @default(0)
+}
+
+// enum VideoType {
+//   scan
+//   link
+//   saved
+// }
+
+model Comment {
+  id          Int      @id @default(autoincrement())
+  author      String
+  content     String
+  createdDTTM DateTime
+  video       Video    @relation(fields: [videoId], references: [id])
+  videoId     Int
+}
+
+model Playlist {
+  id          Int      @id @default(autoincrement())
+  name        String
+  videos      Video[]
+  createdDTTM DateTime
+}
