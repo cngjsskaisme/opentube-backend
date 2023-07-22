@@ -5,7 +5,7 @@ import { Video, VideoType, Prisma } from '@prisma/client';
 import { MediametaService } from '../mediameta/mediameta.service';
 
 @Injectable()
-export class VideoService {
+export class localVideoService {
   constructor(
     private prisma: PrismaService,
     private mediameta: MediametaService
@@ -43,43 +43,60 @@ export class VideoService {
 
   async randomVideos(
     amount: number,
-    getThumbnail: boolean
+    videoLengthThreshold: number,
+    videoExceptKeyword: string
   ): Promise<Video[] | null> {
-    const totalVideos = await this.prisma.video.count()
-    const randomIndices = [...Array(totalVideos).keys()].sort(() => Math.random() - 0.5).slice(0, amount)
-    let videoList = await this.prisma.video.findMany({
-      where: {
-        id: {
-          in: randomIndices
-        }
-      },
-      include: {
-        type: {
-          select: {
-            typeName: true,
-          }
-        }
-      }
-    })
-
+    const totalVideos = await this.prisma.video.count()    
     let modifiedVideoList = []
-    
-    for (let i = 0; i < videoList.length; i++) {
-      const curNode = _.cloneDeep(videoList[i])
-      if (!curNode) { continue }
-      if (!this.mediameta.checkFileExist(curNode.path)) { continue }
-      if (!(curNode.length > 0)) {
-        curNode.length = await this.mediameta.getVideoLength({ videoPath: curNode.path }) || 0
-        await this.prisma.video.update({
-          data: {
-            length: Math.floor(curNode.length)
+
+    while (modifiedVideoList.length < amount) {
+      const randomIndices = [...Array(totalVideos).keys()].sort(() => Math.random() - 0.5).slice(0, amount)
+      const videoListQuery = {
+        where: {
+          id: {
+            in: randomIndices
           },
-          where: {
-            id: curNode.id
+          NOT: undefined
+        },
+        include: {
+          type: {
+            select: {
+              typeName: true,
+            }
           }
-        })
+        }
       }
-      modifiedVideoList.push(curNode)
+
+      if (videoExceptKeyword.length > 0) {
+        videoListQuery.where.NOT = [..._.map(videoExceptKeyword.split(':'), (element) => {
+          return {
+            path: {
+              contains: element
+            }
+          }
+        })]
+      }
+      
+      let videoList = await this.prisma.video.findMany(videoListQuery)
+      
+      for (let i = 0; i < videoList.length; i++) {
+        const curNode = _.cloneDeep(videoList[i])
+        if (!curNode) { continue }
+        if (!this.mediameta.checkFileExist(curNode.path)) { continue }
+        if (!(curNode.length > 0)) {
+          curNode.length = await this.mediameta.getVideoLength({ videoPath: curNode.path }) || 0
+          await this.prisma.video.update({
+            data: {
+              length: Math.floor(curNode.length)
+            },
+            where: {
+              id: curNode.id
+            }
+          })
+        }
+        if (videoLengthThreshold !== 0 && curNode.length < videoLengthThreshold) { continue }
+        if (modifiedVideoList.length < amount) { modifiedVideoList.push(curNode) }
+      }
     }
 
     return modifiedVideoList

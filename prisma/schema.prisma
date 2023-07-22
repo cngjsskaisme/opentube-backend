@@ -49,3 +49,8 @@ model Playlist {
   videos      Video[]
   createdDTTM DateTime
 }
+
+model Setting {
+  id          Int      @id @default(autoincrement())
+  crawlPath   String
+}

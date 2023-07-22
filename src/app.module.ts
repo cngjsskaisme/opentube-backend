@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { VideoService } from './video/video.service';
+import { localVideoService } from './video/localvideo.service';
 import { PrismaService } from './prisma.service';
 import { LocalfileService } from './localfile/localfile.service';
 import { MediametaService } from './mediameta/mediameta.service';
@@ -11,6 +11,6 @@ import { VideoController } from './video/video.controller';
 @Module({
   imports: [],
   controllers: [AppController, FileController, VideoController],
-  providers: [AppService, PrismaService, VideoService, LocalfileService, MediametaService],
+  providers: [AppService, PrismaService, localVideoService, LocalfileService, MediametaService],
 })
 export class AppModule {}

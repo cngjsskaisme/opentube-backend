@@ -1,6 +1,6 @@
 import { promises, constants } from 'fs';
 import { Injectable } from '@nestjs/common';
-import { ffprobe } from 'fluent-ffmpeg';
+import { FfmpegCommand, ffprobe } from 'fluent-ffmpeg';
 import Ffmpeg from 'fluent-ffmpeg';
 import stream from 'stream'
 
@@ -32,52 +32,59 @@ export class MediametaService {
     })
   }
 
-  getVideoThumbnailBuffer({ videoPath, startingPoint = 0 }): Promise<Buffer> {
-    return new Promise((resolve, reject) => {
-      let screenshotBuffer = Buffer.from([]);
-      try {
+  getFfmpeg(videoPath: string): { killInstance: any, getVideoThumbnailBuffer: Function } {
+    let ffmpeg = null
 
-        const randomTime = Math.floor(Math.random() * startingPoint)
-        const bufferStream = new stream.PassThrough()
-        let data = []
+    return {
+      killInstance: () => {
+        if (!ffmpeg) { return false }
+        ffmpeg.kill('SIGINT')
+        ffmpeg.kill('SIGTERM')
+        return true
+      },
+      getVideoThumbnailBuffer: ({ videoPath, startingPoint = 0 }): Promise<Buffer> => {
+        return new Promise((resolve, reject) => {
+          try {
+            const randomTime = Math.floor(Math.random() * startingPoint)
+            const bufferStream = new stream.PassThrough()
 
-        bufferStream.on('data', chunk => {
-          data.push(chunk)
+            ffmpeg = Ffmpeg(videoPath)
+
+            ffmpeg
+              .inputOptions([
+                '-hwaccel cuvid',
+                '-c:v h264_cuvid'
+              ])
+              .outputOptions([
+                '-ss', randomTime.toString(),
+                '-frames:v 1',
+                '-s', '1280x720',
+                '-f', 'image2',
+                // '-vf', 'scale_cuda=w=1280:h=720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black'
+                '-vf', 'thumbnail_cuda=2,scale_cuda=1280:-1,hwdownload,format=nv12',
+                // '-vf', 'scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:black'
+              ])
+              .on('error', (err) => {
+                reject(err)
+              })
+              .on('end', function () {
+              })
+              .writeToStream(bufferStream)
+
+            let buffers = [];
+
+            bufferStream.on('data', (chunk) => {
+              buffers.push(chunk)
+            });
+
+            bufferStream.on('end', () => {
+              resolve(Buffer.concat(buffers))
+            });
+          } catch (e) {
+            console.log(e)
+          }
         })
-
-        bufferStream.on('end', () => {
-          resolve(Buffer.concat(data))
-        })
-
-        Ffmpeg(videoPath)
-          .outputOptions([
-            '-ss', randomTime.toString(),
-            '-vframes', '1',
-            '-s', '1280x720',
-            '-f', 'image2'
-          ])
-          .pipe(bufferStream)
-          .on('error', err => {
-            reject(err)
-          })
-
-        // Ffmpeg(videoPath)
-        //   .on('end', () => {
-        //     resolve(screenshotBuffer)
-        //   })
-        //   .on('error', err => reject(err))
-        //   .screenshots({
-        //     timestamps: ['00:00:05.000'],
-        //     folder: '',
-        //     filename: ''
-        //   })
-        //   .pipe()
-        //   .on('data', chunk => {
-        //     screenshotBuffer = Buffer.concat([screenshotBuffer, chunk]);
-        //   });
-      } catch (e) {
-        console.log(e)
       }
-    });
+    }
   }
 }
