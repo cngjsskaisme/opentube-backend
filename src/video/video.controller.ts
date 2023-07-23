@@ -15,6 +15,7 @@ import { Setting, Video as VideoModel } from '@prisma/client';
 import { LocalfileService } from '../localfile/localfile.service';
 import { MediametaService } from '../mediameta/mediameta.service';
 import { PrismaService } from '../prisma.service';
+import path from 'path'
 import _ from 'lodash'
 
 type DBVideoEntryModel = {
@@ -37,35 +38,44 @@ export class VideoController {
     private readonly localfileService: LocalfileService,
     private readonly localVideoService: localVideoService,
     private readonly mediametaService: MediametaService
-  ) {}
+  ) { }
 
   @Get('random')
   async getRandomVideos(
     @Query('videoListCount') videoListCount: number,
     @Query('videoLengthThreshold') videoLengthThreshold: string,
     @Query('videoExceptKeyword') videoExceptKeyword: string
-    ): Promise<DBVideoEntryModel[]> {
-      let prismaRandomVideo = await this.localVideoService.randomVideos(
-        videoListCount || 1, 
-        parseInt(videoLengthThreshold),
-        videoExceptKeyword
-      )
-  
-      const resultVideoList = []
-  
-      for (let i = 0; i < prismaRandomVideo.length; i++) {
-        let curNode = prismaRandomVideo[i] as any
-        curNode.isThumbnailCached = curNode.thumbnailBlob.byteLength > 0
-        curNode = _.omit(curNode, 'thumbnailBlob')
-        resultVideoList.push(curNode)
-      }
-  
-      return resultVideoList
+  ): Promise<DBVideoEntryModel[]> {
+    let prismaRandomVideo = await this.localVideoService.randomVideos(
+      videoListCount || 1,
+      parseInt(videoLengthThreshold),
+      videoExceptKeyword
+    )
+
+    const resultVideoList = []
+
+    for (let i = 0; i < prismaRandomVideo.length; i++) {
+      let curNode = prismaRandomVideo[i] as any
+      curNode.isThumbnailCached = curNode.thumbnailBlob.byteLength > 0
+      curNode = _.omit(curNode, 'thumbnailBlob')
+      resultVideoList.push(curNode)
+    }
+
+    return resultVideoList
+  }
+
+  @Get('random/index')
+  async getRandomVideoIndex(): Promise<{ data: number }> {
+    const totalVideos = await this.prisma.video.count() 
+
+    return {
+      data: [...Array(totalVideos).keys()].sort(() => Math.random() - 0.5).slice(0, 1)[0]
+    }
   }
 
   @Get('scan/path')
   async getScanPath(): Promise<Setting> {
-    return this.prisma.setting.findFirst({ where: { id: 1 }})
+    return this.prisma.setting.findFirst({ where: { id: 1 } })
   }
 
   @Post('scan/path')
@@ -79,7 +89,6 @@ export class VideoController {
       where: { id: 1 }
     })
   }
-
 
   @Post('scan')
   async scanVideos(
@@ -99,7 +108,7 @@ export class VideoController {
     @Param('id') id: string,
     @Query('thumbnailImageForceCreate') thumbnailImageForceCreate: string
   ): Promise<{ data: string }> {
-    
+
     const currentVideoInfo = await this.localVideoService.getVideo({ id: parseInt(id) })
 
     let result = null
@@ -142,7 +151,23 @@ export class VideoController {
       data: Buffer.from(result).toString('base64')
     }
   }
-  
+
+  @Get('info/:id')
+  async getVideoInfo(
+    @Param('id') id: string,
+  ): Promise<DBVideoEntryModel[]> {
+    let prismaVideo = await this.localVideoService.getVideo({ id: parseInt(id) }) as any
+
+    prismaVideo.isThumbnailCached = false
+    if (prismaVideo.thumbnailBlob.byteLength > 0) { prismaVideo.isThumbnailCached = true }
+    
+    prismaVideo.title = (prismaVideo.path.split(path.sep).pop()).split('.').slice(0, -1).join('.')
+    prismaVideo = _.omit(prismaVideo, 'thumbnailBlob')
+    
+
+    return prismaVideo
+  }
+
   @Delete(':id')
   async deleteVideo(@Param('id') id: string): Promise<VideoModel> {
     return this.localVideoService.deleteVideo({ id: Number(id) });

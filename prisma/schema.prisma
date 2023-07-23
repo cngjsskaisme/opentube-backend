@@ -8,6 +8,13 @@ datasource db {
   url      = "file:./openTube.db"
 }
 
+
+// enum VideoType {
+//   scan
+//   link
+//   saved
+// }
+
 model VideoType {
   id          Int     @id @default(autoincrement())
   typeName    String
@@ -16,23 +23,16 @@ model VideoType {
 }
 
 model Video {
-  id            Int       @id @default(autoincrement())
+  id            Int             @id @default(autoincrement())
   path          String
   thumbnailBlob Bytes
   comments      Comment[]
   createdDTTM   DateTime
-  Playlist      Playlist? @relation(fields: [playlistId], references: [id])
-  playlistId    Int?
-  type          VideoType @relation(fields: [videoTypeId], references: [id])
+  playlists     VideoOnPlaylist[]
+  type          VideoType       @relation(fields: [videoTypeId], references: [id])
   videoTypeId   Int
-  length        Int       @default(0)
+  length        Int             @default(0)
 }
-
-// enum VideoType {
-//   scan
-//   link
-//   saved
-// }
 
 model Comment {
   id          Int      @id @default(autoincrement())
@@ -46,8 +46,16 @@ model Comment {
 model Playlist {
   id          Int      @id @default(autoincrement())
   name        String
-  videos      Video[]
+  videos      VideoOnPlaylist[]
   createdDTTM DateTime
+}
+
+model VideoOnPlaylist {
+  id         Int      @id @default(autoincrement())
+  video      Video    @relation(fields: [videoId], references: [id])
+  videoId    Int
+  playlist   Playlist @relation(fields: [playlistId], references: [id])
+  playlistId Int
 }
 
 model Setting {

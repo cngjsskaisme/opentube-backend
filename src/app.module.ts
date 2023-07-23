@@ -7,10 +7,11 @@ import { LocalfileService } from './localfile/localfile.service';
 import { MediametaService } from './mediameta/mediameta.service';
 import { FileController } from './file/file.controller';
 import { VideoController } from './video/video.controller';
+import { PlaylistController } from './playlist/playlist.controller';
 
 @Module({
   imports: [],
-  controllers: [AppController, FileController, VideoController],
+  controllers: [AppController, FileController, VideoController, PlaylistController],
   providers: [AppService, PrismaService, localVideoService, LocalfileService, MediametaService],
 })
 export class AppModule {}
