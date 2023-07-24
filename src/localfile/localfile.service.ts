@@ -55,7 +55,7 @@ export class LocalfileService {
         const scanVideoType = await this.video.getVideoTypeByName({ typeName: 'scan' })
         for (let j = 0; j < videoWalkResult.length; j++) {
           const curNode = videoWalkResult[j]
-          console.log(j)
+          console.log(crawlPathArray[i] + ' : ' + j)
           if (await this.prisma.video.findFirst({ where: { path: curNode }})) {
             continue
           }
@@ -69,7 +69,7 @@ export class LocalfileService {
           })
         }
         console.log('Added Chunks to DB...')
-        this.video.createVideos({
+        await this.video.createVideos({
           videos: payload
         })
       }

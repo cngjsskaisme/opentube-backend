@@ -18,7 +18,7 @@ import { PrismaService } from '../prisma.service';
 import path from 'path'
 import _ from 'lodash'
 
-type DBVideoEntryModel = {
+export type DBVideoEntryModel = {
   id: number,
   path: string,
   createdDTTM: string,
@@ -81,13 +81,25 @@ export class VideoController {
   @Post('scan/path')
   async updateScanPath(
     @Body() postData: { crawlPath: string }
-  ): Promise<Setting> {
-    return this.prisma.setting.update({
+  ): Promise<any> {
+    const existingSetting = await this.prisma.setting.findUnique({
+      where: { id: 1}
+    })
+    if (!existingSetting) {
+      await this.prisma.setting.create({
+        data: { id: 1 }
+      })
+    }
+    await this.prisma.setting.update({
       data: {
         crawlPath: postData.crawlPath
       },
       where: { id: 1 }
     })
+    return {
+      resultCode: '0000',
+      data: null
+    }
   }
 
   @Post('scan')
@@ -156,7 +168,7 @@ export class VideoController {
   async getVideoInfo(
     @Param('id') id: string,
   ): Promise<DBVideoEntryModel[]> {
-    let prismaVideo = await this.localVideoService.getVideo({ id: parseInt(id) }) as any
+    let prismaVideo = await this.localVideoService.getVideo({id: parseInt(id) }) as any
 
     prismaVideo.isThumbnailCached = false
     if (prismaVideo.thumbnailBlob.byteLength > 0) { prismaVideo.isThumbnailCached = true }

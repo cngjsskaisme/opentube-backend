@@ -24,10 +24,13 @@ export class localVideoService {
   ): Promise<Video | null> {
 
     const foundVideo = await this.prisma.video.findUnique({
-      where: whereUniqueInput
+      where: whereUniqueInput,
+      include: {
+        playlists: true
+      }
     })
 
-    if (!(foundVideo.length > 0)) {
+    if (foundVideo) {
       await this.prisma.video.update({
         data: {
           length: foundVideo.length
@@ -67,7 +70,7 @@ export class localVideoService {
         }
       }
 
-      if (videoExceptKeyword.length > 0) {
+      if (videoExceptKeyword?.length > 0) {
         videoListQuery.where.NOT = [..._.map(videoExceptKeyword.split(':'), (element) => {
           return {
             path: {
