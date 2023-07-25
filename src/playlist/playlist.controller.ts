@@ -1,7 +1,7 @@
 import _ from 'lodash'
 import { DBVideoEntryModel } from 'src/video/video.controller';
 import { PrismaService } from '../prisma.service';
-import { Get, Post, Body, Delete, Controller, Param } from '@nestjs/common';
+import { Get, Post, Body, Delete, Controller, Param, Query } from '@nestjs/common';
 
 @Controller('playlist')
 export class PlaylistController {
@@ -11,10 +11,37 @@ export class PlaylistController {
 
   @Get()
   async getAllPlaylist(): Promise<any> {
+    // Retrieve the Playlist records
     const allPlaylist = await this.prisma.playlist.findMany()
+
+    // Retrieve the last entry of the VideoOnPlaylist relation for each playlist
+    const allPlaylistWithLastVideo = await Promise.all(
+      allPlaylist.map(async playlist => {
+        const lastVideo = await this.prisma.videoOnPlaylist.findFirst({
+          where: {
+            playlistId: playlist.id
+          },
+          orderBy: {
+            orderIndex: 'asc'
+          },
+          include: {
+            video: {
+              select: {
+                id: true
+              }
+            }
+          }
+        })
+
+        return {
+          ...playlist,
+          videos: [lastVideo]
+        }
+      })
+    )
     return {
       resultCode: '0000',
-      data: [...allPlaylist.values()]
+      data: [...allPlaylistWithLastVideo.values()]
     }
   }
 
@@ -35,10 +62,14 @@ export class PlaylistController {
 
   @Get(':id')
   async getPlaylist(
-    @Param('id') id: string
+    @Param('id') id: string,
+    @Param('getAllVideo') getAllVideo: string
   ): Promise<any> {
     const playlist = await this.prisma.playlist.findUnique({
-      where: { id: parseInt(id) }
+      where: { id: parseInt(id) },
+      include: getAllVideo === 'true' ? {
+        videos: true
+      } : undefined
     })
     if (!playlist) {
       return {
@@ -47,23 +78,21 @@ export class PlaylistController {
       }
     }
 
+    let playlistName = await this.prisma.playlist.findUnique({ where: { id: parseInt(id) }}) as any
+    playlistName = playlistName.name
+
     let result = await this.prisma.videoOnPlaylist.findMany({
       where: {
         playlistId: parseInt(id)
-      },
-      select: {
-        id: true,
-        videoId: true,
-        entryName: true,
-        timestamp: true,
-        playlistId: true,
-        playlist: true
       }
     })
     
     return {
       resultCode: '0000',
-      data: [...result.values()]
+      data: {
+        playlistName,
+        entries: [...result.values()]
+      }
     }
   }
 
@@ -103,12 +132,25 @@ export class PlaylistController {
       }
     }
 
+    const playlistLastVideo = await this.prisma.videoOnPlaylist.findFirst({
+      where: {
+        playlistId: parseInt(postData.playlistId)
+      },
+      orderBy: {
+        orderIndex: 'desc'
+      },
+      select: {
+        orderIndex: true
+      }
+    })
+
     const playlistCreateResult = await this.prisma.videoOnPlaylist.create({
       data: {
         videoId: parseInt(postData.videoId),
         playlistId: parseInt(postData.playlistId),
         entryName: postData.entryName,
-        timestamp: postData.timestamp
+        timestamp: postData.timestamp,
+        orderIndex: playlistLastVideo ? (playlistLastVideo?.orderIndex + 1) : 1
       },
       select: {
         playlistId: true

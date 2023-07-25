@@ -39,3 +39,7 @@ openTube.db
 .env
 ffmpeg.exe
 ffprobe.exe
+
+# Temp
+crawlPath.txt
+get.txt

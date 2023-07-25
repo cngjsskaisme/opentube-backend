@@ -31,6 +31,7 @@ model Video {
   type          VideoType         @relation(fields: [videoTypeId], references: [id])
   videoTypeId   Int
   length        Int               @default(0)
+  VideoHistory  VideoHistory[]
 }
 
 model Comment {
@@ -58,6 +59,7 @@ model VideoOnPlaylist {
   playlistId Int
   entryName  String?
   timestamp  String?
+  orderIndex Float
 }
 
 model Setting {
@@ -65,4 +67,10 @@ model Setting {
   crawlPath                  String?
   recentAddedVideoPlaylist   Playlist? @relation(fields: [recentAddedVideoPlaylistId], references: [id], onDelete: Cascade)
   recentAddedVideoPlaylistId Int?
+}
+
+model VideoHistory {
+  id      Int   @id @default(autoincrement())
+  video   Video @relation(fields: [videoId], references: [id])
+  videoId Int
 }

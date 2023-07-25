@@ -33,7 +33,7 @@ export class localVideoService {
     if (foundVideo) {
       await this.prisma.video.update({
         data: {
-          length: foundVideo.length
+          length: foundVideo.length || 0
         },
         where: {
           id: foundVideo.id
